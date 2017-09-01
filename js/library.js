@@ -1,8 +1,8 @@
-var LibraryController, modal, id_project, timeout = 2000;
+var LibraryController;
 
 LibraryController = function () {
     var initOtherLibrary, readBody, random_string, projectIdSuggestion, find, create, find_from_create, wl_projectName, modal_header,
-        url_project;
+        url_project, modal, id_project, timeout = 2000;
 
     initOtherLibrary = function (message, callback) {
         sendOut(0, message);
