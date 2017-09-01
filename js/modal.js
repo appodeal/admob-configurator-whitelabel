@@ -1,4 +1,5 @@
-var Modal = function() {
+var Modal;
+Modal = function() {
     if (!$(".popup").length) {
         var popup = [
             '<div class="popup" data-popup="popup-1">',

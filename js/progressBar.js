@@ -1,7 +1,12 @@
 // progress bar init
-var ProgressBar = function(stepsNum) {
+var ProgressBar = function(stepsNum, message) {
   this.stepsNum = stepsNum;
   this.step = 0;
+  if (message === undefined){
+      this.message = 'Please allow several minutes to sync your inventory.'
+  }else{
+      this.message = message
+  }
 
   console.log("Progress bar added");
 };
@@ -10,7 +15,9 @@ var ProgressBar = function(stepsNum) {
 ProgressBar.prototype.setPosition = function(position) {
   this.position = position;
   var percentage = this.position * 100 + "%";
-  this.bar.css({width: percentage});
+  this.bar.css({
+    width: percentage
+  });
 };
 
 // move progress indicator considering processed ad units num
@@ -21,7 +28,7 @@ ProgressBar.prototype.update = function() {
     this.position = 1.0;
   }
   var percentage = Math.round(this.position * 100);
-  sendNotification('Please allow several minutes to sync your inventory.', 'Loading: ' + percentage + "%", percentage);
+  sendNotification(this.message, 'Loading: ' + percentage + "%", percentage);
 };
 
 ProgressBar.prototype.increase = function() {
