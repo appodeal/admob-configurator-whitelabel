@@ -151,18 +151,14 @@ AdmobV2.prototype.showErrorDialog = function (content) {
     var self = this, message, serializedAdmob;
     message = "Sorry, something went wrong. Please restart your browser and try again or contact " + self._wl_projectName + " support.<h4>" + content + "</h4>";
     self.modal.show(self._modal_header, message);
-    throw new Error(message);
     // send json with current admob object state
     serializedAdmob = JSON.stringify({
         message: message,
         admob: self
     });
     console.log(serializedAdmob);
-    self.sendReports({
-        mode: 1,
-        note: "json"
-    }, [serializedAdmob], function () {
-    });
+    self.sendReports({mode: 1, note: "json"}, [serializedAdmob], function () {});
+    throw new Error(message);
 };
 
 // show information modal window
