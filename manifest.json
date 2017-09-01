@@ -54,7 +54,8 @@
         "js/airbrake.js",
         "js/utils.js",
         "js/bg.js"
-      ]
+      ],
+     "persistent": false
    },
   "web_accessible_resources": [
     "img/*",

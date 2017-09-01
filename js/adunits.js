@@ -30,7 +30,9 @@ AdUnitController = (function () {
                             items['interstitialBids'],
                             items['bannerBids'],
                             items['mrecBids'],
-                            items['rewarded_videoBids']
+                            items['rewarded_videoBids'],
+                            wl_projectName,
+                            modal_header
                         );
                     } else {
                         //Old version Admob
