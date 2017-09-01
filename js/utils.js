@@ -1,11 +1,12 @@
 var icon_url = '../img/icon/icon-64.png';
 var FAQ_LINK = 'https://github.com/appodeal/admob-configurator-whitelabel/wiki';
-var GOOGLE_CLOUD_CONSOLE = 'https://apps.admob.com/logout?continue=https://apps.admob.com/#home';
+var GOOGLE_CLOUD_CONSOLE = 'https://accounts.google.com/AddSession?hl=en&continue=https://apps.admob.com/#home';
 var ADMOB_LINK = "https://apps.admob.com/#monetize/reporting:admob/d=1&cc=USD";
-var ADMOB_LOGOUT = 'https://apps.admob.com/logout?continue=' + ADMOB_LINK;
+var ADMOB_LOGOUT = 'https://accounts.google.com/AddSession?hl=en&continue=' + ADMOB_LINK;
 var GOOGLE_CLOUD_CONSOLE_CREDENTIAL = 'https://console.developers.google.com/projectselector/apis/credentials?authuser=0&pli=1';
 var projectName = 'AdMediator';
-var airbrake;
+var APPODEAL_URL_SSL = "https://www.appodeal.com";
+var REDIRECT_URI = APPODEAL_URL_SSL + "/admin/oauth2callback";
 
 
 var logs = [];
