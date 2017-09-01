@@ -1,4 +1,4 @@
-var LoadController, length_email;
+var LoadController, length_email, ad_mediator_url;
 
 length_email = 25;
 
@@ -58,8 +58,10 @@ LoadController = (function () {
             $('input').val('');
         });
         $('#save').click(function () {
-            chrome.storage.local.set({"ad_mediator_url": $('#ad_mediator_url').val()});
-            login_link();
+            ad_mediator_url = $('#ad_mediator_url').val();
+            chrome.storage.local.set({"ad_mediator_url": ad_mediator_url}, function () {
+                login_link();
+            });
         });
     };
     var ShowDisplayDataAndUpdateStyle = function (item, callback) {
@@ -119,11 +121,8 @@ LoadController = (function () {
         callback();
     };
     var login_link = function () {
-        console.log('login_link');
         chromeStorageGet(function (updates) {
-            chrome.tabs.update({
-                url: updates.ad_mediator_url + "/signin"
-            });
+            chrome.tabs.update({url: updates.ad_mediator_url + "/signin"});
             window.close();
         });
     };
