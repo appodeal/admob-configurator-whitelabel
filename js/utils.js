@@ -17,7 +17,7 @@ function chromeStorageGet(callback) {
        'wl_logo': null,
        'wl_host': null,
        'wl_text': null,
-       'wl_projectName': null,
+       'wl_projectName': projectName,
        'appodeal_email': null,
        'appodeal_api_key': null,
        'appodeal_user_id': null
