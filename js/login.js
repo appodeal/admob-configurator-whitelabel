@@ -1,7 +1,7 @@
 ﻿chromeStorageGet(function (result) {
     if ( result.ad_mediator_url ){
         var user = $('.welcome a, .user span');
-        if (window.location.href.indexOf(result.ad_mediator_url) !== -1){
+        if (result.ad_mediator_url.includes(window.location.href)){
             if (result.appodeal_email || user.length){
                 var appodeal_email = user.text();
                 if (appodeal_email != result.appodeal_email) {
