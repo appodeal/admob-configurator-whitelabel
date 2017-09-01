@@ -5,6 +5,7 @@ var ADMOB_LINK = "https://apps.admob.com/#monetize/reporting:admob/d=1&cc=USD";
 var ADMOB_LOGOUT = 'https://apps.admob.com/logout?continue=' + ADMOB_LINK;
 var GOOGLE_CLOUD_CONSOLE_CREDENTIAL = 'https://console.developers.google.com/projectselector/apis/credentials?authuser=0&pli=1';
 var projectName = 'AdMediator';
+var airbrake;
 
 
 var logs = [];
@@ -24,6 +25,16 @@ function chromeStorageGet(callback) {
         callback(items)
     });
 }
+
+chrome.storage.local.get({
+    'airbrake_js': null
+}, function (items) {
+    if (items.airbrake_js) {
+        airbrake = new AirbrakeController(items.airbrake_js.projectId, items.airbrake_js.projectKey);
+    }else{
+        airbrake = new AirbrakeController(items.airbrake_js, items.airbrake_js);
+    }
+});
 
 function locationProjectName() {
     return document.location.toString().match(/\project=(.+)$/)[1];

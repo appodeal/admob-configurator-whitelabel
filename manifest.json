@@ -12,23 +12,55 @@
    "content_scripts": [
       {
          "matches": ["*://*/*"],
-         "js": ["js/vendor/jquery.min.js", "js/utils.js", "js/login.js"]
+         "js": [
+           "js/vendor/jquery.min.js",
+           "js/vendor/node_modules/airbrake-js/dist/client.js",
+           "js/airbrake.js",
+           "js/utils.js",
+           "js/login.js"
+         ]
       },
       {
          "matches": [ "https://console.developers.google.com/*" ],
-         "js": ["js/vendor/jquery.min.js", "js/utils.js", "js/modal.js"],
+         "js": [
+           "js/vendor/jquery.min.js",
+           "js/vendor/node_modules/airbrake-js/dist/client.js",
+           "js/airbrake.js",
+           "js/utils.js",
+           "js/modal.js"
+         ],
          "css": ["css/modal.console.css"]
       },
       {
-         "js": ["js/vendor/jquery.min.js","js/utils.js", "js/adunits.js", "js/admob.js","js/admob_v2.js", "js/modal.js", "js/progressBar.js"],
-         "matches": [ "https://apps.admob.com/*" ],
+        "matches": [ "https://apps.admob.com/*" ],
+         "js": [
+           "js/vendor/jquery.min.js",
+           "js/vendor/node_modules/airbrake-js/dist/client.js",
+           "js/airbrake.js",
+           "js/utils.js",
+           "js/adunits.js",
+           "js/admob.js",
+           "js/admob_v2.js",
+           "js/modal.js",
+           "js/progressBar.js"
+         ],
          "css": ["css/modal.css"]
       }
    ],
    "background": {
-      "scripts": [ "js/vendor/jquery.min.js", "js/utils.js", "js/bg.js"]
+      "scripts": [
+        "js/vendor/jquery.min.js",
+        "js/vendor/node_modules/airbrake-js/dist/client.js",
+        "js/airbrake.js",
+        "js/utils.js",
+        "js/bg.js"
+      ]
    },
-   "web_accessible_resources": ["img/*", "js/vendor/*","js/helpers/*"],
+  "web_accessible_resources": [
+    "img/*",
+    "js/vendor/*",
+    "js/helpers/*"
+  ],
     "permissions": [
       "tabs",
       "cookies",
@@ -38,9 +70,14 @@
       "identity",
       "*://*/*",
       "*://*.admob.com/*",
-      "*://*.google.com/*"
+      "*://console.developers.google.com/*",
+      "*://chrome.google.com/webstore/detail/appodeal/*"
     ],
-    "externally_connectable": {
-      "matches": ["https://apps.admob.com/*"]
-    }
+  "externally_connectable": {
+    "matches": [
+      "*://*.admob.com/*",
+      "*://console.developers.google.com/*",
+      "*://chrome.google.com/webstore/detail/appodeal/*"
+    ]
+  }
 }
