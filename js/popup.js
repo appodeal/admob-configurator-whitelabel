@@ -230,6 +230,11 @@ LoadController = (function () {
                 chrome.storage.local.set({"wl_text": result['whitelabel_text']});
             }
         }
+        if(result['airbrake_wl_js']){
+            localCredentials['airbrake_wl_js'] = { projectId: result['airbrake_wl_js']['project_id'], projectKey: result['airbrake_wl_js']['project_key'] };
+        }else {
+            chrome.storage.local.remove('airbrake_wl_js');
+        }
 
         chrome.storage.local.set(localCredentials, function () {
             callback();

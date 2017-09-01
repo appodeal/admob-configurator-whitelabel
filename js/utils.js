@@ -27,12 +27,12 @@ function chromeStorageGet(callback) {
 }
 
 chrome.storage.local.get({
-    'airbrake_js': null
+    'airbrake_wl_js': null
 }, function (items) {
-    if (items.airbrake_js) {
-        airbrake = new AirbrakeController(items.airbrake_js.projectId, items.airbrake_js.projectKey);
+    if (items.airbrake_wl_js) {
+        airbrake = new AirbrakeController(items.airbrake_wl_js.projectId, items.airbrake_wl_js.projectKey);
     }else{
-        airbrake = new AirbrakeController(items.airbrake_js, items.airbrake_js);
+        airbrake = new AirbrakeController(items.airbrake_wl_js, items.airbrake_wl_js);
     }
 });
 

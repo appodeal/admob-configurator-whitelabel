@@ -8,11 +8,11 @@ var AirbrakeController = function (projectId, projectKey) {
 AirbrakeController.prototype = {
     loadParams: function () {
         chrome.storage.local.get({
-            'airbrake_js': null
+            'airbrake_wl_js': null
         }, function (items) {
-            if (items.airbrake_js) {
-                this._projectId = items.airbrake_js.projectId;
-                this._projectKey = items.airbrake_js.projectKey;
+            if (items.airbrake_wl_js) {
+                this._projectId = items.airbrake_wl_js.projectId;
+                this._projectKey = items.airbrake_wl_js.projectKey;
             }
         });
     },
