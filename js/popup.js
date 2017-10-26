@@ -8,6 +8,8 @@ LoadController = (function () {
         ShowAdMediatorUrl();
     };
     var getStatus = function (complete) {
+        $('.ad_mediator_url #faq_link').click(faq_link);
+        $('.display_data #faq_link').click(faq_link);
         console.log('getStatus');
         chromeStorageGet(function (updates) {
             if (updates.ad_mediator_url && updates.appodeal_email) {
@@ -33,23 +35,25 @@ LoadController = (function () {
     };
     var clearStorageAndCookies = function () {
         chromeStorageGet(function (updates) {
-            chrome.storage.local.clear();
-            chrome.cookies.remove({
-                'url': updates.ad_mediator_url,
-                'name': '_android_ad_network_session'
-            });
-            chrome.cookies.remove({
-                'url': updates.ad_mediator_url,
-                'name': 'remember_token'
-            });
-            chrome.cookies.remove({
-                'url': updates.ad_mediator_url,
-                'name': 'user_id'
-            });
+            if (updates.ad_mediator_url) {
+                chrome.storage.local.clear();
+                chrome.cookies.remove({
+                    'url': updates.ad_mediator_url,
+                    'name': '_android_ad_network_session'
+                });
+                chrome.cookies.remove({
+                    'url': updates.ad_mediator_url,
+                    'name': 'remember_token'
+                });
+                chrome.cookies.remove({
+                    'url': updates.ad_mediator_url,
+                    'name': 'user_id'
+                });
 
-            chrome.tabs.update({
-                url: updates.ad_mediator_url
-            });
+                chrome.tabs.update({
+                    url: updates.ad_mediator_url
+                });
+            }
         });
     };
     var ShowAdMediatorUrl = function (item) {
