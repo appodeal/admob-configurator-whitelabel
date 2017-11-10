@@ -19,7 +19,7 @@ var Admob = function (userId, apiKey, publisherId, accountEmail, accounts, inter
     this.allAdunits = [];
     this.wl_projectName = wl_projectName;
     this.modal_header = modal_header;
-    this.super_regex = new RegExp("^"+ wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/([0-9\\.]*)\\/*");
+    this.super_regex = new RegExp("^"+ wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|image_and_text|rewarded)\\/([0-9\\.]*)\\/*");
 };
 
 Admob.prototype.syncInventory = function (callback) {
