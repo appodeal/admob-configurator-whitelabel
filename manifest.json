@@ -3,7 +3,7 @@
    "name": "AdMediator",
    "short_name": "AdMediator Admob Sync",
    "description": "This extension will create and sync AdMediator adunits in your Admob account.",
-   "version": "1.1",
+   "version": "1.1.1",
    "browser_action": {
       "default_icon": {"16": "img/icon/icon-16.png"},
       "default_popup": "popup.html"
