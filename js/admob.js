@@ -17,6 +17,7 @@ var Admob = function (userId, apiKey, publisherId, accountEmail, accounts, inter
     Admob.rewarded_videoBids = rewarded_videoBids;
     this.modal = new Modal();
     this.allAdunits = [];
+    // =====================================
     this.wl_projectName = wl_projectName;
     this.modal_header = modal_header;
     this.super_regex = new RegExp("^"+ wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|image_and_text|rewarded)\\/([0-9\\.]*)\\/*");

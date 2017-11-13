@@ -6,7 +6,6 @@ var AdmobV2 = function (userId, apiKey, publisherId, accountEmail, accounts, int
     this.publisherId = publisherId;
     this.accountEmail = accountEmail;
     this.accounts = accounts;
-    this.operation_system = null;
     AdmobV2.schema_data = [];
     // internal admob request url
     AdmobV2.inventoryUrl = "https://apps.admob.com/tlcgwt/inventory";
@@ -16,7 +15,6 @@ var AdmobV2 = function (userId, apiKey, publisherId, accountEmail, accounts, int
     AdmobV2.syncUrl = APPODEAL_URL_SSL + "/api/v2/sync_inventory";
     // internal admob params
     AdmobV2.types = {text: 0, image: 1, video: 2};
-    // appodeal ad unit params
     AdmobV2.adTypes = {interstitial: 0, banner: 1, video: 2, native: 3, mrec: 4, rewarded_video: 5};
     // adunits bids
     AdmobV2.interstitialBids = interstitialBids;
@@ -25,9 +23,11 @@ var AdmobV2 = function (userId, apiKey, publisherId, accountEmail, accounts, int
     AdmobV2.rewarded_videoBids = rewarded_videoBids;
     // initialize modal window
     this.modal = new Modal();
-    // ======================
-    this._wl_projectName = wl_projectName;
-    this._modal_header = modal_header;
+    this.allAdunits = [];
+    // =====================================
+    this.wl_projectName = wl_projectName;
+    this.modal_header = modal_header;
+    this.super_regex = new RegExp("^"+ wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|image_and_text|rewarded)\\/([0-9\\.]*)\\/*");
 };
 
 AdmobV2.prototype.getXsrf = function () {
@@ -40,18 +40,12 @@ AdmobV2.prototype.getXsrf = function () {
     }
 };
 
-// get appodeal apps
-// exclude hidden, inactive and 3rd party apps
-// compose inventory of apps and adunits, remote and local with mapping appodeal to admob
-// create local apps and adunits
-// link Admob apps to play market or itunes
-// send local apps and adunits to appodeal
 AdmobV2.prototype.syncInventory = function (callback) {
     console.log("Sync inventory");
     var self = this;
     try {
         self.getVersion();
-        self.modal.show(self._modal_header, "Please allow several minutes to sync your inventory.");
+        self.modal.show(self.modal_header, "Please allow several minutes to sync your inventory.");
         self.sendReports({
             mode: 0
         }, ["<h4>Sync inventory</h4>"], function () {
@@ -108,13 +102,15 @@ AdmobV2.prototype.humanReport = function () {
     var self = this, report_human;
     try {
         report_human = [];
-        self.report.forEach(function (element) {
-            if (element.includes("h4")) {
-                report_human.push(element)
-            } else {
-                report_human.push("<p style='margin-left: 10px'>" + element + "</p>");
-            }
-        });
+        if (self.report) {
+            self.report.forEach(function (element) {
+                if (element.includes("h4")) {
+                    report_human.push(element)
+                } else {
+                    report_human.push("<p style='margin-left: 10px'>" + element + "</p>");
+                }
+            });
+        }
         return report_human;
     } catch (err) {
         self.airbrake.error.notify(err);
@@ -132,8 +128,8 @@ AdmobV2.prototype.finishDialog = function () {
             self.report.push(noAppsMsg);
             items.push("<h4>" + noAppsMsg + "</h4>");
         }
-        items.push('Admob is synced with ' + self._wl_projectName + ' now.');
-        self.modal.show("Congratulations! Sync complete!", "Admob is synced with " + self._wl_projectName + " now. You can run step 3 again if you add new apps and also you need to check and fill completely all payment details in Admob to start show ads. <br> Please click this <a href='https://apps.admob.com/v2/apps/list'>link</a> to reload and go to url Admob apps. <br> <h3>Synchronized inventory</h3>" + self.humanReport().join(""));
+        items.push('Admob is synced with ' + self.wl_projectName + ' now.');
+        self.modal.show("Congratulations! Sync complete!", "Admob is synced with " + self.wl_projectName + " now. You can run step 3 again if you add new apps and also you need to check and fill completely all payment details in Admob to start show ads. <br> Please click this <a href='https://apps.admob.com/v2/apps/list'>link</a> to reload and go to url Admob apps. <br> <h3>Synchronized inventory</h3>" + self.humanReport().join(""));
         // send finish reports
         self.sendReports({
             mode: 0,
@@ -148,16 +144,20 @@ AdmobV2.prototype.finishDialog = function () {
 
 // show error modal window, send report to server
 AdmobV2.prototype.showErrorDialog = function (content) {
-    var self = this, message, serializedAdmob;
-    message = "Sorry, something went wrong. Please restart your browser and try again or contact " + self._wl_projectName + " support.<h4>" + content + "</h4>";
-    self.modal.show(self._modal_header, message);
+    var self = this, message;
+    message = "Sorry, something went wrong. Please restart your browser and try again or contact " + self.wl_projectName + " support.<h4>" + content + "</h4>";
+    self.modal.show(self.modal_header, message);
     // send json with current admob object state
-    serializedAdmob = JSON.stringify({
+    var serializedAdmob = JSON.stringify({
         message: message,
         admob: self
     });
     console.log(serializedAdmob);
-    self.sendReports({mode: 1, note: "json"}, [serializedAdmob], function () {});
+    self.sendReports({
+        mode: 1,
+        note: "json"
+    }, [serializedAdmob], function () {
+    });
     throw new Error(message);
 };
 
@@ -171,7 +171,7 @@ AdmobV2.prototype.showInfoDialog = function (content) {
         }, [content], function () {
             console.log("Sent information report");
         });
-        self.modal.show(self._modal_header, content);
+        self.modal.show(self.modal_header, content);
     } catch (err) {
         self.airbrake.error.notify(err);
     }
@@ -295,37 +295,38 @@ AdmobV2.prototype.newAdunitsForServer = function (app) {
     var self = this, adunits;
     try {
         adunits = [];
-        app.localAdunits.forEach(function (l) {
-            var name, adAppId, serverAdunitFormat;
-            // process adunits with correct appodeal app id only if exists
-            name = l[3];
-            // if ((l[16] && l[16].length == 1) || l[18]) name = l[3];
-            adAppId = self.adUnitRegex(name).appId;
-            if (!adAppId || adAppId === app.id) {
-                var code, bid, adType, adTypeInt, f;
-                try {
-                    code = self.adunitServerId(l[5][0][7][0][1]);
-                } catch (e) {
-                    code = self.adunitServerId(l[1]);
+        if (app.localAdunits) {
+            app.localAdunits.forEach(function (l) {
+                var name, adAppId, serverAdunitFormat;
+                name = l[3];
+                // if ((l[16] && l[16].length == 1) || l[18]) name = l[3];
+                adAppId = self.adUnitRegex(name).appId;
+                if (!adAppId || adAppId === app.id) {
+                    var code, bid, adType, adTypeInt, f;
+                    try {
+                        code = self.adunitServerId(l[5][0][7][0][1]);
+                    } catch (e) {
+                        code = self.adunitServerId(l[1]);
+                    }
+                    bid = self.adunitBid(l);
+                    adType = self.adUnitRegex(name).adType;
+                    adTypeInt = AdmobV2.adTypes[adType];
+                    f = app.ad_units.findByProperty(function (r) {
+                        return (r.code === code && r.ad_type === adType && r.bid_floor === bid && r.account_key === self.accountId);
+                    }).element;
+                    // remote adunit not found
+                    if (!f) {
+                        serverAdunitFormat = {
+                            code: code,
+                            ad_type: adTypeInt,
+                            bid_floor: bid,
+                            name: name
+                        };
+                        adunits.push(serverAdunitFormat);
+                    }
                 }
-                bid = self.adunitBid(l);
-                adType = self.adUnitRegex(name).adType;
-                adTypeInt = AdmobV2.adTypes[adType];
-                f = app.ad_units.findByProperty(function (r) {
-                    return (r.code === code && r.ad_type === adType && r.bid_floor === bid && r.account_key === self.accountId);
-                }).element;
-                // remote adunit not found
-                if (!f) {
-                    serverAdunitFormat = {
-                        code: code,
-                        ad_type: adTypeInt,
-                        bid_floor: bid,
-                        name: name
-                    };
-                    adunits.push(serverAdunitFormat);
-                }
-            }
-        });
+            });
+        }
         return (adunits);
     } catch (err) {
         self.airbrake.error.notify(err);
@@ -396,12 +397,11 @@ AdmobV2.prototype.isPublisherIdRight = function () {
     }
 };
 
-// default appodeal local app name (not linked to store yet)
 AdmobV2.prototype.defaultAppName = function (app) {
     var self = this;
     try {
         var maxLength = 80;
-        var name = self._wl_projectName + '/' + app.id + "/" + app.appName;
+        var name = self.wl_projectName + '/' + app.id + "/" + app.appName;
         return name.substring(0, maxLength);
     } catch (err) {
         self.airbrake.error.notify(err);
@@ -425,14 +425,11 @@ AdmobV2.prototype.synchronousEach = function (array, callback, finish) {
     }
 };
 
-// Check if adunit has appodeal-configured type
 AdmobV2.prototype.adUnitRegex = function (name) {
-    var self = this, result, matchedType, regex;
+    var self = this, result, matchedType;
     try {
         result = {};
-        // works with both old and new adunit names
-        regex = new RegExp("^"+ self._wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/");
-        matchedType = regex.exec(name);
+        matchedType = self.super_regex.exec(name);
         if (matchedType && matchedType.length > 1) {
             result.adType = matchedType[2];
             if (matchedType[1]) {
@@ -447,14 +444,9 @@ AdmobV2.prototype.adUnitRegex = function (name) {
 
 // get bid from local adunit
 AdmobV2.prototype.adunitBid = function (adunit) {
-    var self = this, matchedType, regex;
+    var self = this, matchedType;
     try {
-        regex = new RegExp("^"+ self._wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|text|rewarded)\\/(\\d+|\\d.+)\\/");
-        matchedType = regex.exec(adunit[3]);
-        if (!matchedType) {
-            regex = new RegExp("^"+ self._wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|text|rewarded)\\/");
-            matchedType = regex.exec(adunit[2]);
-        }
+        matchedType = self.super_regex.exec(adunit[3]);
         if (matchedType) {
             if (matchedType[4]) {
                 return (parseFloat(matchedType[4]));
@@ -472,65 +464,53 @@ AdmobV2.prototype.adunitBid = function (adunit) {
 // make scheme array from existing local adunits to compare it with the full scheme and find missing
 AdmobV2.prototype.localAdunitsToScheme = function (app) {
     var self = this, scheme = [];
-    try {
-        if (!app.localAdunits) {
-            return scheme;
-        }
-        app.localAdunits.forEach(function (adunit) {
-            var bid, name, hash, admobAppId, adType, formats, adFormatName, adAppId, matchedType, regex;
-            adAppId = self.adUnitRegex(adunit[3]).appId;
-            regex = new RegExp("^"+ self._wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|text|rewarded)\\/(\\d+|\\d.+)\\/");
-            matchedType = regex.exec(adunit[3]);
-            // check if adunit has correct appodeal app id (for new name formats)
-            if (!adAppId || adAppId === app.id) {
-                admobAppId = adunit[2];
-                adType = adunit[14];
-                formats = adunit[16];
-                // text format name only for text adunits without bid floors
-                if (matchedType && matchedType.length > 1) {
-                    adFormatName = matchedType[3];
-                } else {
-                    regex = new RegExp("^"+ self._wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|text|rewarded)\\/");
-                    matchedType = regex.exec(adunit[3]);
-                    adFormatName = matchedType[3];
-                }
-                if (matchedType[4]) {
-                    bid = (parseFloat(matchedType[4]) * 1000000).toString();
-                    name = adunit[3];
-                    hash = {app: admobAppId, name: name, adType: adType, formats: formats, bid: bid};
-                } else {
-                    name = adunit[3];
-                    hash = {app: admobAppId, name: name, adType: adType, formats: formats};
-                }
-
-                if (matchedType[4] && adFormatName === "rewarded") {
-                    bid = (parseFloat(matchedType[4]) * 1000000).toString();
-                    name = adunit[3];
-                    hash = {
-                        app: admobAppId,
-                        name: name,
-                        adType: adType,
-                        formats: formats,
-                        bid: bid,
-                        reward_settings: {"1": 1, "2": "reward", "3": 0}
-                    };
-                } else if (!matchedType[4] && adFormatName === "rewarded") {
-                    name = adunit[3];
-                    hash = {
-                        app: admobAppId,
-                        name: name,
-                        adType: adType,
-                        formats: formats,
-                        reward_settings: {"1": 1, "2": "reward", "3": 0}
-                    };
-                }
-                scheme.push(hash);
-            }
-        });
-        return (scheme);
-    } catch (err) {
-        self.airbrake.error.notify(err);
+    if (!app.localAdunits) {
+        return scheme;
     }
+    app.localAdunits.forEach(function (adunit) {
+        var hash, admobAppId, adType, formats, adFormatName, adAppId, matchedType;
+        try {
+            if (adunit[3]) {
+                adAppId = self.adUnitRegex(adunit[3]).appId;
+                if (!adAppId || adAppId === app.id) {
+                    admobAppId = adunit[2];
+                    adType = adunit[14];
+                    formats = adunit[16];
+                    matchedType = self.super_regex.exec(adunit[3]);
+                    if (matchedType && matchedType[3]) {
+                        adFormatName = matchedType[3];
+                    } else {
+                        return;
+                    }
+                    if (matchedType[4]) {
+                        hash = {
+                            app: admobAppId,
+                            name: adunit[3],
+                            adType: adType,
+                            formats: formats,
+                            bid: (parseFloat(matchedType[4]) * 1000000).toString()
+                        };
+                    } else {
+                        hash = {app: admobAppId, name: adunit[3], adType: adType, formats: formats};
+                    }
+
+                    if (adFormatName && adFormatName === "rewarded") {
+                        Object.assign(hash, {reward_settings: {"1": 1, "2": "reward", "3": 0}});
+                    }
+
+                    if (typeof adunit[21] !== 'undefined') {
+                        Object.assign(hash, {google_optimized: adunit[21] === 1});
+                    }
+
+                    scheme.push(hash);
+                }
+            }
+        } catch (err) {
+            console.log(adunit);
+            self.airbrake.error.notify(err);
+        }
+    });
+    return (scheme);
 };
 
 
@@ -541,7 +521,7 @@ AdmobV2.prototype.createLocalAdunit = function (s, os, callback) {
     try {
         var message = "Create adunit " + s.name;
         console.log(message);
-        self.modal.show(self._modal_header, message);
+        self.modal.show(self.modal_header, message);
         self.operation_system = os;
 
         params = {
@@ -556,9 +536,14 @@ AdmobV2.prototype.createLocalAdunit = function (s, os, callback) {
             },
             "xsrf": self.token
         };
+
         if (s.reward_settings) {
             params.params[3][17] = 1;
             params.params[3][18] = s.reward_settings;
+        }
+
+        if (s.google_optimized) {
+            params.params[3][21] = s.google_optimized;
         }
 
         self.inventoryPost(params, function (data) {
@@ -602,72 +587,105 @@ AdmobV2.prototype.GetMediationGroupList = function (callback) {
 };
 
 // Find all missing adunits for app in inventory
-AdmobV2.prototype.adunitsScheme = function (app) {
+AdmobV2.prototype.adunitsScheme = function (app, bid_floors) {
     var self = this, scheme = [];
     try {
-        // default adunits
+        scheme.push({
+            app: app.localApp[1],
+            name: self.adunitName(app, "banner", "image"),
+            adType: 0,
+            formats: [AdmobV2.types.text, AdmobV2.types.image],
+            google_optimized: false
+        });
         scheme.push({
             app: app.localApp[1],
             name: self.adunitName(app, "interstitial", "image"),
             adType: 1,
-            formats: [1]
+            formats: [AdmobV2.types.text, AdmobV2.types.image],
+            google_optimized: false
         });
         scheme.push({
             app: app.localApp[1],
-            name: self.adunitName(app, "interstitial", "text"),
-            adType: 1,
-            formats: [0]
+            name: self.adunitName(app, "mrec", "image"),
+            adType: 0,
+            formats: [AdmobV2.types.text, AdmobV2.types.image],
+            google_optimized: false
         });
-        scheme.push({app: app.localApp[1], name: self.adunitName(app, "banner", "image"), adType: 0, formats: [1]});
-        scheme.push({app: app.localApp[1], name: self.adunitName(app, "banner", "text"), adType: 0, formats: [0]});
-        scheme.push({app: app.localApp[1], name: self.adunitName(app, "mrec", "image"), adType: 0, formats: [1]});
-        scheme.push({app: app.localApp[1], name: self.adunitName(app, "mrec", "text"), adType: 0, formats: [0]});
-        if (AdmobV2.rewarded_videoBids.length > 0) {
-            scheme.push({
-                app: app.localApp[1],
-                name: self.adunitName(app, "rewarded_video", "rewarded"),
-                adType: 1,
-                formats: [2],
-                reward_settings: {"1": 1, "2": "reward", "3": 0}
-            });
-        }
+        scheme.push({
+            app: app.localApp[1],
+            name: self.adunitName(app, "rewarded_video", "rewarded"),
+            adType: 1,
+            formats: [AdmobV2.types.video],
+            reward_settings: {"1": 1, "2": "reward", "3": 0},
+            google_optimized: false
+        });
         // adunit bid floor in admob format
         function admobBidFloor(bid) {
             return (bid * 1000000).toString();
         }
 
-        // adunits with bid floors
         // interstitial adunits
-        AdmobV2.interstitialBids.forEach(function (bid) {
-            var name = self.adunitName(app, "interstitial", "image", bid);
-            scheme.push({app: app.localApp[1], name: name, adType: 1, formats: [0, 1, 2], bid: admobBidFloor(bid)})
-        });
+        if (bid_floors.interstitialBids) {
+            bid_floors.interstitialBids.forEach(function (bid) {
+                var name = self.adunitName(app, "interstitial", "image_and_text", bid);
+                scheme.push({
+                    app: app.localApp[1],
+                    name: name,
+                    adType: 1,
+                    formats: [AdmobV2.types.text, AdmobV2.types.image, AdmobV2.types.video],
+                    bid: admobBidFloor(bid),
+                    google_optimized: false
+                })
+            });
+        }
         // banner adunits
-        AdmobV2.bannerBids.forEach(function (bid) {
-            var name = self.adunitName(app, "banner", "image", bid);
-            scheme.push({app: app.localApp[1], name: name, adType: 0, formats: [0, 1], bid: admobBidFloor(bid)})
-        });
+        if (bid_floors.bannerBids) {
+            bid_floors.bannerBids.forEach(function (bid) {
+                var name = self.adunitName(app, "banner", "image_and_text", bid);
+                scheme.push({
+                    app: app.localApp[1],
+                    name: name,
+                    adType: 0,
+                    formats: [AdmobV2.types.text, AdmobV2.types.image],
+                    bid: admobBidFloor(bid),
+                    google_optimized: false
+                })
+            });
+        }
         // mrec adunits
-        AdmobV2.mrecBids.forEach(function (bid) {
-            var name = self.adunitName(app, "mrec", "image", bid);
-            scheme.push({app: app.localApp[1], name: name, adType: 0, formats: [0, 1], bid: admobBidFloor(bid)})
-        });
-        //rewarded_video adunits
-        if (AdmobV2.rewarded_videoBids.length > 0) {
-            AdmobV2.rewarded_videoBids.forEach(function (bid) {
+        if (bid_floors.mrecBids) {
+            bid_floors.mrecBids.forEach(function (bid) {
+                var name = self.adunitName(app, "mrec", "image_and_text", bid);
+                scheme.push({
+                    app: app.localApp[1],
+                    name: name,
+                    adType: 0,
+                    formats: [AdmobV2.types.text, AdmobV2.types.image],
+                    bid: admobBidFloor(bid),
+                    google_optimized: false
+                })
+            });
+        }
+        // rewarded_video adunits
+        if (bid_floors.rewarded_videoBids) {
+            bid_floors.rewarded_videoBids.forEach(function (bid) {
                 if (bid !== 0) {
                     var name = self.adunitName(app, "rewarded_video", "rewarded", bid);
                     scheme.push({
                         app: app.localApp[1],
                         name: name,
                         adType: 1,
-                        formats: [2],
+                        formats: [AdmobV2.types.video],
                         bid: admobBidFloor(bid),
-                        reward_settings: {"1": 1, "2": "reward", "3": 0}
+                        reward_settings: {"1": 1, "2": "reward", "3": 0},
+                        google_optimized: false
                     });
                 }
             });
         }
+
+        // adunits with bid floors
+        // interstitial adunits
         return (scheme);
     } catch (err) {
         self.airbrake.error.notify(err);
@@ -676,9 +694,19 @@ AdmobV2.prototype.adunitsScheme = function (app) {
 
 // Find all missing adunits for app in inventory
 AdmobV2.prototype.missingAdunits = function (app) {
-    var self = this, scheme, localScheme, missingScheme;
+    var self = this, scheme, localScheme, missingScheme, bid_floors;
     try {
-        scheme = self.adunitsScheme(app);
+        bid_floors = self.accounts.reduce(function (accounts_result, account) {
+            if (account.apps) {
+                account.apps.forEach(function (app_account) {
+                    if (app_account.id === app.id) accounts_result = app_account.bid_floors;
+                });
+                if (accounts_result) {
+                    return accounts_result;
+                }
+            }
+        }, {});
+        scheme = self.adunitsScheme(app, bid_floors);
         localScheme = self.localAdunitsToScheme(app);
         // select all elements from scheme that are not existing in localScheme
         missingScheme = $.grep(scheme, function (s) {
@@ -695,10 +723,10 @@ AdmobV2.prototype.missingAdunits = function (app) {
 
 // generate adunit name
 AdmobV2.prototype.adunitName = function (app, adName, typeName, bidFloor) {
-    var self = this, name, nameMediationGroup, bundleLength;
+    var self = this, name, nameMediationGroup, bundleLength, schema_data;
     try {
-        name = self._wl_projectName + "/" + app.id + "/" + adName + "/" + typeName;
-        nameMediationGroup = self._wl_projectName + "/" + adName + "/" + typeName;
+        name = self.wl_projectName + "/" + app.id + "/" + adName + "/" + typeName;
+        nameMediationGroup = self.wl_projectName + "/" + adName + "/" + typeName;
         if (bidFloor) {
             name += "/" + bidFloor;
             nameMediationGroup += "/" + bidFloor;
@@ -708,14 +736,16 @@ AdmobV2.prototype.adunitName = function (app, adName, typeName, bidFloor) {
         if (bundleLength > 0) {
             name += "/" + app.bundle_id.substring(0, bundleLength);
         }
-        if (!AdmobV2.schema_data.includes(nameMediationGroup)) AdmobV2.schema_data.push(nameMediationGroup);
+        schema_data = AdmobV2.schema_data;
+        if (schema_data && Array.isArray(schema_data)) {
+            if (!schema_data.includes(nameMediationGroup)) schema_data.push(nameMediationGroup);
+        }
         return (name);
     } catch (err) {
         self.airbrake.error.notify(err);
     }
 };
 
-// get remote appodeal apps with adunits
 AdmobV2.prototype.getRemoteInventory = function (callback) {
     var self = this, json = {};
     try {
@@ -731,7 +761,7 @@ AdmobV2.prototype.getRemoteInventory = function (callback) {
                 if (self.inventory && self.inventory.length) {
                     callback();
                 } else {
-                    self.showInfoDialog(self._wl_projectName + " applications not found. Please add applications to " + self._wl_projectName + ".")
+                    self.showInfoDialog(self.wl_projectName + " applications not found. Please add applications to " + self.wl_projectName +".")
                 }
             })
             .fail(function (data) {
@@ -755,6 +785,7 @@ AdmobV2.prototype.getLocalInventory = function (callback) {
         }, function (data) {
             self.localApps = data.result[1][1];
             self.localAdunits = data.result[1][2];
+            self.allAdunits = data.result[1][2];
             callback(data.result);
         })
     } catch (err) {
@@ -762,8 +793,6 @@ AdmobV2.prototype.getLocalInventory = function (callback) {
     }
 };
 
-// map apps between appodeal and admob
-// for each appodeal app find admob app and select local adunits
 AdmobV2.prototype.mapApps = function (callback) {
     console.log("Map apps");
     var self = this, mappedLocalApp, appodealMatch, localAppIndex, regex;
@@ -771,38 +800,38 @@ AdmobV2.prototype.mapApps = function (callback) {
     // mapped local apps moved from localApps arrays
     // inside remote apps in inventory array
     try {
-        self.inventory.forEach(function (remoteApp, index, apps) {
-            if (self.localApps) {
-                // find by admob app id
-                mappedLocalApp = self.localApps.findByProperty(function (localApp) {
-                    return (remoteApp.AdmobV2_app_id === localApp[1]);
-                }).element;
-                // find by package name and os or default app name
-                if (!mappedLocalApp) {
+        if (self.inventory) {
+            self.inventory.forEach(function (remoteApp, index, apps) {
+                if (self.localApps) {
+                    // find by admob app id
                     mappedLocalApp = self.localApps.findByProperty(function (localApp) {
-                        if (remoteApp.search_in_store && localApp[4] === remoteApp.package_name && localApp[3] === remoteApp.os) {
-                            return (true);
-                        }
-                        // check if name is default (Appodeal/12345/...)
-                        regex = new RegExp("^" + self._wl_projectName +"\\/(\\d+)(\\/|$)");
-                        appodealMatch = localApp[2].match(regex);
-
-                        return (appodealMatch && parseInt(appodealMatch[1]) === remoteApp.id)
+                        return (remoteApp.AdmobV2_app_id === localApp[1]);
                     }).element;
-                }
-                // move local app to inventory array
-                if (mappedLocalApp) {
-                    console.log(remoteApp.appName + " (" + mappedLocalApp[2] + ") has been mapped " + remoteApp.id + " -> " + mappedLocalApp[1]);
-                    localAppIndex = $.inArray(mappedLocalApp, self.localApps);
-                    if (localAppIndex > -1) {
-                        self.localApps.splice(localAppIndex, 1);
-                        remoteApp.localApp = mappedLocalApp;
-                        // map local adunits
-                        remoteApp.localAdunits = self.selectLocalAdunits(mappedLocalApp[1]);
+                    // find by package name and os or default app name
+                    if (!mappedLocalApp) {
+                        mappedLocalApp = self.localApps.findByProperty(function (localApp) {
+                            if (remoteApp.search_in_store && localApp[4] === remoteApp.package_name && localApp[3] === remoteApp.os) {
+                                return (true);
+                            }
+                            regex = new RegExp("^" + self.wl_projectName +"\\/(\\d+)(\\/|$)");
+                            appodealMatch = localApp[2].match(regex);
+                            return (appodealMatch && parseInt(appodealMatch[1]) === remoteApp.id)
+                        }).element;
+                    }
+                    // move local app to inventory array
+                    if (mappedLocalApp) {
+                        console.log(remoteApp.appName + " (" + mappedLocalApp[2] + ") has been mapped " + remoteApp.id + " -> " + mappedLocalApp[1]);
+                        localAppIndex = $.inArray(mappedLocalApp, self.localApps);
+                        if (localAppIndex > -1) {
+                            self.localApps.splice(localAppIndex, 1);
+                            remoteApp.localApp = mappedLocalApp;
+                            // map local adunits
+                            remoteApp.localAdunits = self.selectLocalAdunits(mappedLocalApp[1]);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
         // do not store useless arrays
         delete self.localAdunits;
         delete self.localApps;
@@ -842,7 +871,6 @@ AdmobV2.prototype.filterHiddenLocalApps = function () {
     }
 };
 
-// select only new and active adunits with Appodeal-configured types
 AdmobV2.prototype.selectLocalAdunits = function (admobAppId) {
     var self = this, selectedAdunits;
     try {
@@ -854,8 +882,7 @@ AdmobV2.prototype.selectLocalAdunits = function (admobAppId) {
                 }
                 // check adunit type
                 var t = self.adUnitRegex(adunit[3]).adType;
-                return (adunit[14] === 1 && (t === 'interstitial' || t === 'rewarded_video')) ||
-                    (adunit[14] === 0 && (t === 'banner' || t === 'mrec'));
+                return (adunit[14] === 1 && (t === 'interstitial' || t === 'rewarded_video')) || (adunit[14] === 0 && (t === 'banner' || t === 'mrec'));
             })
         }
         return (selectedAdunits);
@@ -914,12 +941,15 @@ AdmobV2.prototype.makeMissingAdunitsLists = function (callback) {
     console.log("Make missing adunits list");
     var self = this;
     try {
-        self.inventory.forEach(function (app, index, apps) {
-            app.missingAdunits = self.missingAdunits(app);
-        });
+        if (self.inventory) {
+            self.inventory.forEach(function (app, index, apps) {
+                app.missingAdunits = self.missingAdunits(app);
+            });
+        }
         callback();
-    } catch (e) {
-        self.showErrorDialog("Missing adunits list: " + e.message);
+    } catch (err) {
+        self.showErrorDialog("Missing adunits list: " + err.message);
+        self.airbrake.error.notify(err);
     }
 };
 
@@ -931,9 +961,13 @@ AdmobV2.prototype.createMissingAdunits = function (callback) {
         // reports generating
         self.report = [];
         // init progress bar
-        self.inventory.forEach(function (app) {
-            missingAdunitsNum += app.missingAdunits.length;
-        });
+        if (self.inventory) {
+            self.inventory.forEach(function (app) {
+                if (app.missingAdunits) {
+                    missingAdunitsNum += app.missingAdunits.length;
+                }
+            });
+        }
         self.progressBar = new ProgressBar(missingAdunitsNum);
         // create missing local adunits
         if (missingAdunitsNum === 0) {
@@ -973,11 +1007,13 @@ AdmobV2.prototype.createAdunits = function (app, callback) {
 AdmobV2.prototype.FindAndDeleteOldMediationGroup = function (data, self, callback) {
     var ids_group = [];
     try {
-        data.forEach(function (item, i, arr) {
-            if (item[3] === 1 && item[2].includes(self._wl_projectName) && !(item[2].includes('/android') || item[2].includes('/ios'))) {
-                ids_group.push(item[1]);
-            }
-        });
+        if (data) {
+            data.forEach(function (item, i, arr) {
+                if (item[3] === 1 && item[2].includes(self.wl_projectName) && !(item[2].includes('/android') || item[2].includes('/ios'))) {
+                    ids_group.push(item[1]);
+                }
+            });
+        }
         if (ids_group.length > 0) {
             $.ajax({
                 type: 'POST',
@@ -1005,7 +1041,7 @@ AdmobV2.prototype.CreateOrUpdateMediationGroup = function (callback) {
     var self = this;
     try {
         console.log("Create or Update Mediation Group");
-        self.modal.show(self._wl_projectName, "Please allow several minutes to sync your adunit to Mediation Group.");
+        self.modal.show(self.modal_header, "Please allow several minutes to sync your adunit to Mediation Group.");
         self.getLocalInventory(function () {
             //CreateMediationGroup
             self.GetMediationGroupList(function (response) {
@@ -1048,7 +1084,6 @@ AdmobV2.prototype.CreateOrUpdateMediationGroup = function (callback) {
                                 var LocalScheme = $.grep(data[1], function (local_schema) {
                                     return (local_schema[3] === 1 && local_schema[4][1] === item)
                                 });
-                                //filter Mediation Groups if included Appodeal scheme
                                 result[item] = $.grep(AdmobV2.schema_data, function (GroupSchema) {
                                     return !Object.keys(LocalScheme).map(function (e) {
                                         var name = LocalScheme[e][2];
@@ -1089,11 +1124,16 @@ AdmobV2.prototype.UpdateMediationGroup = function (OperationSystemMissingSchemeM
                                 return {'id': localAdunit[1], 'ad_unit_name': ad_unit_name.replace('/' + app.id, '')}
                             });
                             //Clear name Mediation Group
-                            local_schema_name = local_schema_name.replace('/android', '');
-                            local_schema_name = local_schema_name.replace('/ios', '');
+                            local_schema_name = local_schema_name.replace('android', '');
+                            local_schema_name = local_schema_name.replace('ios', '');
 
                             return localAdunits.reduce(function (result, item) {
-                                if (item.ad_unit_name.includes(local_schema_name)) {
+                                // local_schema_name == item.ad_unit_name
+                                var arr = item.ad_unit_name.split('/');
+                                // delete package_name
+                                delete arr[arr.length - 1];
+                                var ad_unit_name = arr.join('/');
+                                if (ad_unit_name === local_schema_name) {
                                     result = item.id
                                 }
                                 return result;
@@ -1107,13 +1147,15 @@ AdmobV2.prototype.UpdateMediationGroup = function (OperationSystemMissingSchemeM
                         }
                     });
                     var approve_push = false;
-                    need_adunits.forEach(function (item, i, arr) {
-                        if (res[4][3] === undefined) {
-                            approve_push = true;
-                        } else if (!res[4][3].includes(item)) {
-                            approve_push = true;
-                        }
-                    });
+                    if (need_adunits) {
+                        need_adunits.forEach(function (item, i, arr) {
+                            if (res[4][3] === undefined) {
+                                approve_push = true;
+                            } else if (!res[4][3].includes(item)) {
+                                approve_push = true;
+                            }
+                        });
+                    }
                     if (approve_push) {
                         res[4][3] = need_adunits
                     } else {
@@ -1148,9 +1190,14 @@ AdmobV2.prototype.UpdateMediationGroup = function (OperationSystemMissingSchemeM
                         headers: {
                             "x-framework-xsrf-token": self.token
                         },
-                        error: function (response) {
+                        error: function (jqXHR, textStatus, errorThrown) {
+                            console.log('UserID' + self.user_id);
                             console.log(ar);
-                            self.showErrorDialog("No result in MediationGroupService.Update:1 request." + response.responseText);
+                            if (jqXHR.status === 500) {
+                                self.showErrorDialog('Internal error: ' + jQuery.parseJSON(jqXHR.responseText));
+                            } else {
+                                self.showErrorDialog('Unexpected error.');
+                            }
                         }
                     });
                     self.progressBar.increase();
@@ -1165,9 +1212,11 @@ AdmobV2.prototype.UpdateMediationGroup = function (OperationSystemMissingSchemeM
                         var items = [];
                         // collect and send reports to server
                         items.push("<h4>" + app.name + "</h4>");
-                        app.adunits.forEach(function (adunit) {
-                            items.push(adunit.name);
-                        });
+                        if (app.adunits) {
+                            app.adunits.forEach(function (adunit) {
+                                items.push(adunit.name);
+                            });
+                        }
                         self.report.push.apply(self.report, items);
                         self.sendReports({mode: 0}, [items.join("\n ")], function () {
                             console.log("Sent reports from -> " + app.name);
@@ -1196,16 +1245,21 @@ AdmobV2.prototype.CreateMediationGroup = function (OperationSystemMissingSchemeM
                 value.forEach(function (item) {
                     // Each of Scheme Adunit
                     var type = 0;
+                    var s6 = true;
+                    var s4 = 2;
                     var bidflor = "10000";
-                    var regex = new RegExp("^" + self._wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|text|rewarded)\\/");
-                    var matchedType = item.replace(regex, "");
-
+                    var matchedType = item.replace(self.super_regex, "");
                     if (!isNaN(matchedType)) bidflor = (parseFloat(matchedType) * 1000000).toString();
+                    if (matchedType === self.wl_projectName + '/banner/image_and_text') {
+                        //google optimization
+                        s6 = false;
+                        s4 = 1;
+                    }
                     var adTypeName = self.adUnitRegex(item).adType;
                     if (adTypeName === 'banner') type = 0;
                     if (adTypeName === 'interstitial') type = 1;
                     if (adTypeName === 'rewarded_video') type = 5;
-                    var ar = '{"1":"' + item + '/' + osName + '","2": 1,"3": {"1": ' + osId + ', "2": ' + type + ', "3": []},"4": [{"2": 1, "3": 1, "4": 2, "5": {"1": "' + bidflor + '", "2": "USD"}, "6": true}]}';
+                    var ar = '{"1":"' + item + '/' + osName + '","2": 1,"3": {"1": ' + osId + ', "2": ' + type + ', "3": []},"4": [{"2": 1, "3": 1, "4": ' + s4 + ', "5": {"1": "' + bidflor + '", "2": "USD"}, "6": ' + s6 + '}]}';
                     $.ajax({
                         type: 'POST',
                         url: 'https://apps.admob.com/inventory/_/rpc/MediationGroupService/Create?rpcTrackingId=MediationGroupService.Create:1',
@@ -1217,9 +1271,14 @@ AdmobV2.prototype.CreateMediationGroup = function (OperationSystemMissingSchemeM
                         headers: {
                             "x-framework-xsrf-token": self.token
                         },
-                        error: function (response) {
+                        error: function (jqXHR, textStatus, errorThrown) {
+                            console.log('UserID' + self.user_id);
                             console.log(ar);
-                            self.showErrorDialog(response.responseText);
+                            if (jqXHR.status === 500) {
+                                self.showErrorDialog('Internal error: ' + jQuery.parseJSON(jqXHR.responseText));
+                            } else {
+                                self.showErrorDialog('Unexpected error.');
+                            }
                         }
                     });
                     self.progressBar.increase();
@@ -1251,9 +1310,9 @@ AdmobV2.prototype.syncWithServer = function (apps, callback) {
     var self = this, params = {account: this.accountId, api_key: this.apiKey, user_id: this.userId, apps: []};
     try {
         self.report = [];
-        apps.forEach(function (app, i, arr) {
-            var id, name, admob_app_id, adunits, h;
-            if (app.ad_units.length !== app.localAdunits.length) {
+        if (apps) {
+            apps.forEach(function (app, i, arr) {
+                var id, name, admob_app_id, adunits, h;
                 id = app.id;
                 name = app.localApp[2];
                 admob_app_id = app.localApp[1];
@@ -1262,8 +1321,8 @@ AdmobV2.prototype.syncWithServer = function (apps, callback) {
                 if (h.admob_app_id !== app.admob_app_id || h.adunits.length) {
                     params.apps.push(h);
                 }
-            }
-        });
+            });
+        }
         callback(params);
     } catch (err) {
         self.airbrake.error.notify(err);
@@ -1296,7 +1355,6 @@ AdmobV2.prototype.linkLocalApp = function (app, callback) {
     var self = this;
     try {
         // check if there is no linked local app with a current package name
-        // include hidden and not appodeal apps
         // admob allow only one app with unique package name to be linked to store
         if (self.storeIds && self.storeIds.length > 0 && !self.storeIds.includes(app.package_name)) {
             self.searchAppInStores(app, function (storeApp) {
@@ -1489,47 +1547,77 @@ AdmobV2.prototype.updateAdunitFormats = function (adunit, callback) {
 
 // Add video format to all app adunits
 AdmobV2.prototype.updateAppAdunitFormats = function (app, callback) {
-    var self = this, adunits;
+    var self = this, adunits_ids = [];
     try {
         if (app.localAdunits) {
-            // select interstitial adunits with bid floor and without video format
-            adunits = $.grep(app.localAdunits, function (adunit) {
-                return (adunit[10] && adunit[14] === 1 && JSON.stringify(adunit[16]) !== "[0,1,2]") && adunit[17] !== 1;
+            self.removeOldAdunits(app.admob_app_id, function (clear_adunits) {
+                if (clear_adunits.length > 0) {
+                    clear_adunits.forEach(function (adunit, i, arr) {
+                        adunits_ids.push(adunit[1])
+                    });
+                    // Filter deleted adunits
+                    app.localAdunits = app.localAdunits.filter(function (localAdunit) {
+                        return !adunits_ids.includes(localAdunit[1])
+                    });
+                    callback(adunits_ids);
+                } else {
+                    callback(adunits_ids);
+                }
             });
-            // update selected adunits
-            self.synchronousEach(adunits, function (adunit, next) {
-                var adunitIndex = $.inArray(adunit, app.localAdunits);
-                self.updateAdunitFormats(adunit, function (updatedAdunit) {
-                    // put updated adunit to inventory app local adunits array
-                    if (adunitIndex > -1) {
-                        app.localAdunits[adunitIndex] = updatedAdunit;
-                    }
-                    next();
-                })
-            }, function () {
-                callback();
-            })
         } else {
-            callback();
+            callback(adunits_ids);
         }
     } catch (err) {
         self.airbrake.error.notify(err);
     }
 };
 
-// Add video format to all appodeal app's adunits
 AdmobV2.prototype.updateFormats = function (callback) {
-    var self = this;
+    var self = this, adunits_ids = [];
     try {
         console.log("Update absent formats");
-        // update formats in all local adunits from appodeal apps
         self.synchronousEach(self.inventory.slice(), function (app, next) {
-            self.updateAppAdunitFormats(app, function () {
+            self.updateAppAdunitFormats(app, function (ids) {
+                if (ids.length > 0) {
+                    adunits_ids = adunits_ids.concat(ids);
+                }
                 next();
             })
         }, function () {
-            callback();
+            if (adunits_ids.length > 0) {
+                // Send from archive adunits
+                self.inventoryPost({
+                    method: "archiveInventory",
+                    params: {3: adunits_ids},
+                    xsrf: self.token
+                }, function () {
+                    console.log('Clear old adunits -> ' + adunits_ids);
+                    callback();
+                });
+            } else {
+                callback();
+            }
         })
+    } catch (err) {
+        self.airbrake.error.notify(err);
+    }
+};
+
+AdmobV2.prototype.removeOldAdunits = function (admobAppId, cb) {
+    var self = this, adunits = [], localAdunits = [];
+    try {
+        localAdunits = $.grep(self.allAdunits, function (adunit) {
+            return (adunit[2] === admobAppId && adunit[9] === 0);
+        });
+
+        adunits = $.grep(localAdunits, function (adunit) {
+            if (adunit[3]) {
+                var matchedType = self.super_regex.exec(adunit[3]);
+                return (adunit[3].includes(self.wl_projectName) && (!adunit[22] || matchedType === null || typeof matchedType[1] === 'undefined' || typeof matchedType[2] === 'undefined' || typeof matchedType[3] === 'undefined'));
+            }
+        });
+
+        cb(adunits);
     } catch (err) {
         self.airbrake.error.notify(err);
     }
