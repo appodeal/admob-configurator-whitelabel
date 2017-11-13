@@ -1248,14 +1248,16 @@ AdmobV2.prototype.CreateMediationGroup = function (OperationSystemMissingSchemeM
                     var s6 = true;
                     var s4 = 2;
                     var bidflor = "10000";
-                    var matchedType = item.replace(self.super_regex, "");
+                    var regex = new RegExp("^" + self._wl_projectName +"(\\/\\d+)?\\/(banner|interstitial|mrec|rewarded_video)\\/(image|image_and_text|rewarded)\\/");
+                    var matchedType = item.replace(regex, "");
                     if (!isNaN(matchedType)) bidflor = (parseFloat(matchedType) * 1000000).toString();
                     if (matchedType === self.wl_projectName + '/banner/image_and_text') {
                         //google optimization
                         s6 = false;
                         s4 = 1;
                     }
-                    var adTypeName = self.adUnitRegex(item).adType;
+                    var res = item.match(/(banner|interstitial|mrec|rewarded_video)/g);
+                    var adTypeName = res[0];
                     if (adTypeName === 'banner') type = 0;
                     if (adTypeName === 'interstitial') type = 1;
                     if (adTypeName === 'rewarded_video') type = 5;
