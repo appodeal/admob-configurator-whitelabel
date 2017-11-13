@@ -285,7 +285,7 @@ LoadController = (function () {
         });
     };
     var updateReportLink = function (item) {
-        var data, leftNum, acc_name = '';
+        var data, leftNum, acc_name = '<ul>';
         var report = $('.point_reporting');
         var report_svg = $('#reporting div.svgStep');
         data = item['plugin_status'];
@@ -297,12 +297,13 @@ LoadController = (function () {
                 $.each( data['many_user_admob_accounts']['accounts'], function( key, value ) {
                     if(value != undefined){
                         var label = cut('Synced '+ (value['synced'] >= 2 ? 'apps' : 'app') + ': ' + value['synced'] + ' ' + value['email'], 30);
-                        acc_name = acc_name + '<span class="account">' + label + '</span>';
+                        acc_name = acc_name + '<li class="account">' + label + '</li>';
                     }
                 });
+                acc_name = acc_name = acc_name + '</ul>';
                 report_svg.removeClass('stepTwo');
                 report_svg.addClass('stepDone');
-                report.html('<a class="point" id="reporting_link">'+acc_name+'</a>');
+                report.html('<a class="point" id="reporting_link">Enabled Admob reporting '+acc_name+'</a>');
                 $('#reporting_link').click(function () {
                     reporting_link();
                 });
